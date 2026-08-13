@@ -1,0 +1,37 @@
+[
+  {
+    "id": "case_01",
+    "topic": "fuel_poverty",
+    "prompt": "How could a council investigate inequalities in fuel poverty?"
+  },
+  {
+    "id": "case_02",
+    "topic": "school_absence",
+    "prompt": "What factors might be associated with persistent school absence?"
+  },
+  {
+    "id": "case_03",
+    "topic": "digital_exclusion",
+    "prompt": "How could a council explore digital exclusion among older residents?"
+  },
+  {
+    "id": "case_04",
+    "topic": "healthy_places",
+    "prompt": "What data and analytical approaches could help a council understand inequalities in access to healthy places?"
+  },
+  {
+    "id": "case_05",
+    "topic": "food_poverty",
+    "prompt": "How could a local authority investigate food poverty among families?"
+  },
+  {
+    "id": "case_06",
+    "topic": "mental_health",
+    "prompt": "How could a council examine differences in mental-health outcomes between population groups?"
+  },
+  {
+    "id": "case_07",
+    "topic": "marginalised_communities",
+    "prompt": "How could a council investigate whether a public-health intervention is reaching marginalised communities?"
+  }
+]

@@ -1,12 +1,16 @@
 import asyncio
+import json
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from src import reviewer_agent
+
+
 async def main():
 
     # ---------------------------------------
-    # 1. This is for connecting the AutoGen to the Local Llama model
+    # Model client
     # ---------------------------------------
 
     model_client = OpenAIChatCompletionClient(
@@ -23,14 +27,13 @@ async def main():
     )
 
     # ---------------------------------------
-    # 2. Creating the Research Scoper Agent
+    # Agent 1 Research Scoper Agent
     # ---------------------------------------
 
     research_scoper = AssistantAgent(
         name="research_scoper",
         model_client=model_client,
         system_message="""
-        
         You are a research scoping assistant supporting a local authority.
         
         Given a service or public health problem:
@@ -47,17 +50,6 @@ async def main():
         Do not claim that a dataset exists unless it has been provided.
         Clearly distinguish suggestions form established facts.
         
-        Prefer the simplest analytical method capable of answering the research question.
-
-        Do not recommend machine learning unless there is a clear reason 
-        that simpler descriptive or statistical methods would be insufficient.
-        
-        Never state that a specific dataset is available unless the user has
-        provided evidence that it exists.
-
-        When suggesting data, use language such as "potentially useful data
-        could include..."
-        
         Always use exactly these headings:
         
         ## Problem
@@ -69,6 +61,52 @@ async def main():
         ## State assumptions and missing information.
         """
     )
+
+    # ---------------------------------------
+    # Agent 2 Reviewer Agent
+    # ---------------------------------------
+
+    critical_reviewer = AssistantAgent(
+        name="critical_reviewer",
+        model_client=model_client,
+        system_message="""
+        You are a critical research-methods and responsible-AI reviewer
+        supporting a local authority.
+        
+        You will receive a proposed research-scoping brief.
+        
+        Critically review it and identify:
+        
+        1. Unsupported assumptions.
+        2. Weak or inappropriate analytical claims.
+        3. Possible correlation-versus-causation problems.
+        4. Potential bias or unfairness.
+        5. Missing data-quality considerations.
+        6. Privacy or data-governance considerations.
+        7. Missing stakeholder or community perspectives.
+        8. Methodological limitations.
+        9. Missing evidence or information.
+        10. Specific improvements.
+        
+        Do not simply agree with the proposal.
+        
+        Do not invent evidence or claim that a dataset, policy or programme
+        exists unless it has been supplied.
+        
+        Always use exactly these headings:
+        
+        ## Overall Assessment
+        ## Unsupported Assumptions
+        ## Methodological Issues
+        ## Data Quality Issues
+        ## Bias / Fairness
+        ## Privacy / Governance
+        ## Stakeholder Considerations
+        ## Limitations
+        ## Recommended Improvements
+    """
+    )
+
     # ---------------------------------------
     # 3. Give the research agent a research problem
     # ---------------------------------------
@@ -77,34 +115,65 @@ async def main():
     How could a council investigate inequalities in fuel poverty?
     """
 
-    # 4. Run the Agent
+    # 4. Run the Agent 1
 
-    result = await research_scoper.run(
+    scoper_result = await research_scoper.run(
         task=question
     )
+
+    research_brief = scoper_result.messages[-1].content
+
+    # 4.5 Run the Agent 2
+
+    review_task = f"""
+    Review the following research-scoping proposal.
+    
+    Original Research problem:
+    
+    {question}
+    
+    Research Scoper Proposal:
+    
+    {research_brief}
+    
+    Critically Review this proposal.
+"""
+
+    review_result = await critical_reviewer.run(
+        task=review_task
+    )
+
     # ---------------------------------------
     # 5. extract the final Response
     # ---------------------------------------
 
-    final_response = result.messages[-1].content
 
+    critical_review = review_result.messages[-1].content
 
     # ---------------------------------------
     # 6. Display response
     # ---------------------------------------
 
+
+    # Display results
     print("\n" + "=" * 70)
-    print("HDRC RESEARCH SCOPER")
+    print("ORIGINAL QUESTION")
     print("=" * 70)
-
-    print(f"\nQUESTION:\n{question.strip()}")
-
-    print("\n" + "-" * 70)
-    print("\nRESEARCH BRIEF:\n")
-
-    print(final_response)
+    print(question.strip())
 
     print("\n" + "=" * 70)
+    print("RESEARCH SCOPER")
+    print("=" * 70)
+    print(research_brief)
+
+    print("\n" + "=" * 70)
+    print("CRITICAL REVIEWER")
+    print("=" * 70)
+    print(critical_review)
+
+    await model_client.close()
+
+
 
     # ---------------------------------------
     # 7. Close model connection
@@ -114,6 +183,15 @@ async def main():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    asyncio.run(main())
+
+    with open("tests/evaluation_cases.json", "r") as file:
+        evaluation_cases = json.load(file)
+
+    for case in evaluation_cases:
+        print(case["id"], "-", case["topic"])
+        print(case["prompt"])
+        print()
+
+    #asyncio.run(main())
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
